@@ -1,0 +1,140 @@
+-- THAIIIFMFYT | STEAL A BRAINROT
+-- For your own Roblox Studio game
+
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local remotes = ReplicatedStorage:FindFirstChild("THAIIIFMFYT_Remotes")
+
+if not remotes then
+    remotes = Instance.new("Folder")
+    remotes.Name = "THAIIIFMFYT_Remotes"
+    remotes.Parent = ReplicatedStorage
+end
+
+local function getRemote(name)
+    local remote = remotes:FindFirstChild(name)
+
+    if not remote then
+        remote = Instance.new("RemoteEvent")
+        remote.Name = name
+        remote.Parent = remotes
+    end
+
+    return remote
+end
+
+local speedRemote = getRemote("SetSpeed")
+local jumpRemote = getRemote("SetJump")
+local buyRemote = getRemote("BuyBrainrot")
+local lockRemote = getRemote("LockBase")
+
+local brainrots = {
+    Noob = {Price = 100, Income = 5},
+    Cat = {Price = 500, Income = 20},
+    Dragon = {Price = 2500, Income = 100},
+}
+
+local bases = {}
+local locked = {}
+local ownedBrainrots = {}
+
+local function setupPlayer(player)
+    local stats = Instance.new("Folder")
+    stats.Name = "leaderstats"
+    stats.Parent = player
+
+    local coins = Instance.new("IntValue")
+    coins.Name = "Coins"
+    coins.Value = 500
+    coins.Parent = stats
+
+    local income = Instance.new("IntValue")
+    income.Name = "IncomePerSecond"
+    income.Value = 0
+    income.Parent = stats
+
+    ownedBrainrots[player.UserId] = {}
+end
+
+Players.PlayerAdded:Connect(setupPlayer)
+
+for _, player in ipairs(Players:GetPlayers()) do
+    if not player:FindFirstChild("leaderstats") then
+        setupPlayer(player)
+    end
+end
+
+speedRemote.OnServerEvent:Connect(function(player, speed)
+    if typeof(speed) ~= "number" then return end
+    if speed ~= speed or speed == math.huge then return end
+
+    speed = math.clamp(math.floor(speed), 0, 100)
+
+    local character = player.Character
+    local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+
+    if humanoid then
+        humanoid.WalkSpeed = speed
+    end
+end)
+
+jumpRemote.OnServerEvent:Connect(function(player, enabled)
+    if typeof(enabled) ~= "boolean" then return end
+
+    local character = player.Character
+    local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+
+    if humanoid then
+        humanoid.UseJumpPower = true
+        humanoid.JumpPower = enabled and 100 or 50
+    end
+end)
+
+buyRemote.OnServerEvent:Connect(function(player, brainrotName)
+    if typeof(brainrotName) ~= "string" then return end
+
+    local item = brainrots[brainrotName]
+    if not item then return end
+
+    local stats = player:FindFirstChild("leaderstats")
+    local coins = stats and stats:FindFirstChild("Coins")
+    local income = stats and stats:FindFirstChild("IncomePerSecond")
+
+    if not coins or not income then return end
+    if coins.Value < item.Price then return end
+
+    coins.Value -= item.Price
+    income.Value += item.Income
+
+    table.insert(ownedBrainrots[player.UserId], brainrotName)
+end)
+
+lockRemote.OnServerEvent:Connect(function(player, enabled)
+    if typeof(enabled) ~= "boolean" then return end
+    locked[player.UserId] = enabled
+end)
+
+task.spawn(function()
+    while true do
+        task.wait(1)
+
+        for _, player in ipairs(Players:GetPlayers()) do
+            local stats = player:FindFirstChild("leaderstats")
+            local coins = stats and stats:FindFirstChild("Coins")
+            local income = stats and stats:FindFirstChild("IncomePerSecond")
+
+            if coins and income then
+                coins.Value += income.Value
+            end
+        end
+    end
+end)
+
+Players.PlayerRemoving:Connect(function(player)
+    bases[player.UserId] = nil
+    locked[player.UserId] = nil
+    ownedBrainrots[player.UserId] = nil
+end)
+
+print("THAIIIFMFYT Server loaded!")
